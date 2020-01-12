@@ -17,18 +17,17 @@ response_template = """HTTP/1.0 200 OK
 
 %s
 """
-
 import machine
 import ntptime, utime
 from machine import RTC
 from time import sleep
 
+led = machine.Pin(9, machine.Pin.OUT)
+rtc = RTC()
 try:
     seconds = ntptime.time()
 except:
     seconds = 0
-
-rtc = RTC()
 rtc.datetime(utime.localtime(seconds))
 
 def time():
@@ -47,11 +46,33 @@ def dummy():
 
     return response_template % body
 
-pin = machine.Pin(10, machine.Pin.IN)
+def turn_on_light():
+    led.value(1)
+    body = "You turned on a light."
+    return response_template % body
+
+def turn_off_light():
+    led.value(0)
+    body = "You turned off a light."
+    return response_template % body
+
+def read_switch():
+    switch = machine.Pin(10, machine.Pin.IN)
+    json_result = "{state: %i}" % switch.value()
+    return response_template % json_result
+
+def measure_light():
+    val = machine.ADC(0)
+    json_result = "{value: %i}" % val.read()
+    return response_template % json_result
 
 handlers = {
     'time': time,
     'dummy': dummy,
+    'light_on': turn_on_light,
+    'light_off': turn_off_light,
+    'switch': read_switch,
+    'light': measure_light,
 }
 
 def main():
@@ -63,9 +84,10 @@ def main():
 
     s.bind(addr)
     s.listen(5)
-    print("Listening, connect your browser to http://<this_host>:8080")
+    print("Listening, connect your browser to http://<this_host>:8080/")
 
     while True:
+        sleep(.5)
         res = s.accept()
         client_s = res[0]
         client_addr = res[1]
